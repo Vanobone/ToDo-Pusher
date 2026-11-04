@@ -478,7 +478,8 @@ function renderScene() {
   var cols = Object.keys(KINDS).map(function (k) { return KINDS[k].c; });
   for (var i = 0; i < Math.min(14, state.shredded); i++) {
     var s2 = document.createElement('i');
-    s2.style.setProperty('--c', cols[i % 4]); s2.style.left = ((i * 23 + 6) % 88 + 2) + '%';
+    var kk = (state.shreds || [])[i];
+    s2.style.setProperty('--c', kk && KINDS[kk] ? KINDS[kk].c : cols[i % 4]); s2.style.left = ((i * 23 + 6) % 88 + 2) + '%';
     s2.style.setProperty('--r', ((i * 47) % 140 - 70) + 'deg'); s2.style.height = (14 + (i * 5) % 12) + 'px';
     bin.appendChild(s2);
   }
@@ -632,11 +633,14 @@ function stripClone(fly, W, H, i, N) {
   var c = fly.cloneNode(true);
   c.classList.remove('fly', 'printing', 'ghost');
   c.style.cssText = 'position:absolute;left:0;top:0;width:' + W + 'px;height:' + H + 'px;transform-origin:0 0;filter:none;transition:none;';
+  c.style.setProperty('--paper', fly.style.getPropertyValue('--paper'));
   if (N) c.style.clipPath = 'inset(0 ' + (100 - (i + 1) * 100 / N) + '% 0 ' + (i * 100 / N) + '%)';
   return c;
 }
 function toShredder(fly, t) {
-  var s = T.state(); s.shredded++; T.persist(); T.renderAll();
+  var s = T.state(); s.shredded++;
+  s.shreds = s.shreds || []; s.shreds.push(t.kind); if (s.shreds.length > 14) s.shreds.shift();
+  T.persist(); T.renderAll();
   var slot = $('#shrSlot').getBoundingClientRect(), mouth = $('#shrMouth').getBoundingClientRect(), bin = $('#shrBin').getBoundingClientRect();
   var p = fly._p, W = fly._w, H = fly._h;
   var sc = Math.min(1, (slot.width * .92) / W, .62), sw = W * sc, sh = H * sc;
