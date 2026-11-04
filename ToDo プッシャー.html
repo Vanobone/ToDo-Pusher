@@ -1,0 +1,768 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ToDo プッシャー</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Maru+Gothic:wght@400;500;700&display=swap">
+<style>
+/* Layout: ticket booth on the left (week strip, issuing window, ticket rack); the lake and the shredder sit in a sticky column on the right, and become a fixed dock on phones. */
+:root {
+  --bg: #dde9ec;
+  --panel: #eef5f6;
+  --ink: #1b2a33;
+  --ink-soft: #4f6572;
+  --line: #b4cbd2;
+  --stamp: #d3412b;
+  --water-top: #66b6d4;
+  --water-deep: #2b7095;
+  --glow: #c4f6e5;
+  --metal: #8fa3ad;
+  --metal-dark: #5d727d;
+  --shadow: rgba(20, 50, 65, .22);
+  --paper-work: #a9cdee;
+  --paper-life: #bfe3c4;
+  --paper-play: #f6c3cf;
+  --paper-learn: #f6e3a0;
+  --paper-ink: #26323a;
+  --f-display: "DotGothic16", "Hiragino Kaku Gothic ProN", "Yu Gothic", monospace;
+  --f-body: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1820; --panel: #14262f; --ink: #e6eef2; --ink-soft: #8fa6b3; --line: #29424f;
+    --stamp: #ff6b52; --water-top: #2d7ea6; --water-deep: #0e3a54; --glow: #8fe8cf;
+    --metal: #55707d; --metal-dark: #2f434d; --shadow: rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1820; --panel: #14262f; --ink: #e6eef2; --ink-soft: #8fa6b3; --line: #29424f;
+  --stamp: #ff6b52; --water-top: #2d7ea6; --water-deep: #0e3a54; --glow: #8fe8cf;
+  --metal: #55707d; --metal-dark: #2f434d; --shadow: rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  padding-block: 18px 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--stamp); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px 20px; margin-bottom: 16px; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 30px; line-height: 1.1; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.brand h1 b { color: var(--stamp); font-weight: 400; }
+.brand p { margin: 4px 0 0; color: var(--ink-soft); font-size: 13px; }
+.weeknav { display: flex; align-items: center; gap: 8px; }
+.weeknav .range { font-family: var(--f-display); font-size: 17px; min-width: 9.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.chip { border: 1.5px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 14px; font-size: 13px; }
+.chip:hover { border-color: var(--ink-soft); }
+
+/* layout */
+.main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding-bottom: 190px; }
+@media (min-width: 900px) {
+  .main { grid-template-columns: minmax(0, 1fr) 360px; padding-bottom: 0; align-items: start; }
+}
+
+/* week strip */
+.strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+.day { position: relative; border: 1.5px solid var(--line); background: var(--panel); border-radius: 10px; padding: 8px 2px 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform .15s, background .15s, border-color .15s; }
+.day .dow { font-family: var(--f-display); font-size: 15px; line-height: 1; }
+.day .dnum { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.day .dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-height: 10px; max-width: 100%; padding-top: 3px; }
+.day .dots i { width: 7px; height: 9px; border-radius: 1.5px; background: var(--c); display: block; }
+.day .dots em { font-style: normal; font-size: 10px; color: var(--ink-soft); line-height: 9px; }
+.day.sel { background: var(--ink); color: var(--bg); border-color: var(--ink); transform: translateY(-3px); box-shadow: 0 6px 0 -2px var(--shadow); }
+.day.sel .dnum { color: var(--bg); opacity: .75; }
+.day.today::after { content: "今日"; position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: var(--stamp); color: #fff; font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 999px; white-space: nowrap; }
+.day.over { border-color: var(--stamp); background: color-mix(in srgb, var(--stamp) 14%, var(--panel)); transform: scale(1.06); }
+.day.clear .dnum::before { content: "済 "; color: var(--stamp); font-weight: 700; }
+
+/* issuing window */
+.window { background: var(--panel); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 8px; }
+.window h2 { margin: 0 0 8px; font-family: var(--f-display); font-weight: 400; font-size: 16px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.window h2 small { font-family: var(--f-body); font-size: 12px; color: var(--ink-soft); }
+.issue { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.field { border: 1.5px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 12px; width: 100%; min-width: 0; }
+.field::placeholder { color: var(--ink-soft); }
+.issue .row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.kinds { display: flex; gap: 6px; flex-wrap: wrap; }
+.kind { border: 2px solid transparent; background: var(--c); color: var(--paper-ink); border-radius: 8px; padding: 4px 11px; font-size: 13px; }
+.kind[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 2px 0 var(--ink); transform: translateY(-1px); }
+.timeinp { width: 7.5em; flex: none; }
+.go { background: var(--stamp); color: #fff; border: 0; border-radius: 10px; padding: 0 20px; font-family: var(--f-display); font-size: 17px; letter-spacing: .08em; box-shadow: 0 3px 0 color-mix(in srgb, var(--stamp) 60%, #000); }
+.go:active { transform: translateY(2px); box-shadow: 0 1px 0 color-mix(in srgb, var(--stamp) 60%, #000); }
+.note { font-size: 12px; color: var(--ink-soft); margin: 0 0 12px; }
+
+/* rack */
+.rackhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 14px 2px 10px; flex-wrap: wrap; }
+.rackhead h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 20px; }
+.rackhead span { font-size: 12px; color: var(--ink-soft); }
+.rack { display: flex; flex-direction: column; gap: 12px; min-height: 60px; }
+.empty { border: 2px dashed var(--line); border-radius: 14px; padding: 26px 18px; text-align: center; color: var(--ink-soft); }
+
+/* ticket */
+.tk { position: relative; filter: drop-shadow(0 3px 0 var(--shadow)) drop-shadow(0 8px 10px var(--shadow)); transition: transform .18s; touch-action: auto; user-select: none; -webkit-user-select: none; }
+.tk:hover { transform: translateY(-2px) rotate(-.3deg); }
+.tk.ghost { opacity: .25; }
+.tk.printing { animation: print .8s steps(14, end) both; }
+@keyframes print { from { clip-path: inset(0 0 100% 0); transform: translateY(-14px); } to { clip-path: inset(0 0 0 0); transform: none; } }
+.tk.leaving { animation: leave .3s ease forwards; }
+@keyframes leave { to { opacity: 0; transform: scale(.96); max-height: 0; margin: 0; } }
+.tk-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) 58px; background: var(--paper); color: var(--paper-ink);
+  border-radius: 7px; min-height: 104px; position: relative;
+  -webkit-mask: radial-gradient(circle at 0 50%, #0000 9px, #000 9.6px) left / 51% 100% no-repeat, radial-gradient(circle at 100% 50%, #0000 9px, #000 9.6px) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle at 0 50%, #0000 9px, #000 9.6px) left / 51% 100% no-repeat, radial-gradient(circle at 100% 50%, #0000 9px, #000 9.6px) right / 51% 100% no-repeat;
+}
+.tk-main { padding: 10px 14px 10px 20px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tk-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; letter-spacing: .14em; }
+.tk-top .stampdate { font-family: var(--f-display); color: #c23a25; letter-spacing: .04em; font-size: 13px; border: 1.5px solid #c23a25; border-radius: 3px; padding: 0 5px; transform: rotate(-2deg); }
+.tk-dest small { display: block; font-size: 10px; letter-spacing: .3em; opacity: .65; margin-top: 2px; }
+.tk-title { font-family: var(--f-display); font-size: 22px; line-height: 1.25; margin: 0; overflow-wrap: anywhere; word-break: break-word; }
+.tk-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 4px; font-size: 12px; }
+.tk-foot .when { font-family: var(--f-display); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tk-foot .no { opacity: .6; font-family: var(--f-display); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tk-acts { display: flex; gap: 6px; }
+.act { width: 34px; height: 30px; border-radius: 8px; border: 1.5px solid rgba(38, 50, 58, .55); background: rgba(255, 255, 255, .55); display: grid; place-items: center; padding: 0; color: var(--paper-ink); }
+.act:hover { background: #fff; }
+.act svg { width: 18px; height: 18px; }
+.stub { border-left: 2px dashed rgba(38, 50, 58, .4); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 10px 0; touch-action: none; cursor: grab; background: rgba(255, 255, 255, .22); border-radius: 0 7px 7px 0; }
+.stub:active { cursor: grabbing; }
+.stub .kindname { writing-mode: vertical-rl; font-family: var(--f-display); font-size: 15px; letter-spacing: .25em; }
+.stub .bars { width: 28px; height: 22px; background: repeating-linear-gradient(90deg, var(--paper-ink) 0 2px, transparent 2px 4px, var(--paper-ink) 4px 5px, transparent 5px 8px); opacity: .75; }
+.stub .grip { width: 16px; height: 10px; background: radial-gradient(circle, rgba(38, 50, 58, .6) 1.4px, transparent 1.8px) 0 0 / 5px 5px; }
+.tk.late .tk-main::after { content: "遅延"; position: absolute; right: 74px; top: 40px; font-family: var(--f-display); font-size: 21px; color: #c23a25; border: 3px double #c23a25; padding: 0 8px; border-radius: 6px; transform: rotate(-11deg); opacity: .8; pointer-events: none; letter-spacing: .1em; }
+.tk .sample { font-size: 10px; border: 1px solid rgba(38, 50, 58, .5); border-radius: 3px; padding: 0 4px; margin-left: 6px; letter-spacing: .1em; }
+.fly { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; transform-origin: 0 0; will-change: transform; }
+.dragging-body, .dragging-body * { cursor: grabbing !important; }
+</style>
+<style>
+/* scene: lake + shredder */
+.scene { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; background: color-mix(in srgb, var(--bg) 92%, transparent); border-top: 1.5px solid var(--line); backdrop-filter: blur(6px);
+  padding-top: 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 900px) {
+  .scene { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 12px; padding: 78px 0 0; background: none; border: 0; backdrop-filter: none; z-index: 5; }
+}
+.lakeWrap, .shrWrap { position: relative; min-width: 0; }
+.cap { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: var(--ink-soft); padding: 4px 4px 0; line-height: 1.3; }
+.cap b { font-family: var(--f-display); font-weight: 400; color: var(--ink); font-size: 13px; }
+
+.lake { --h: 120px; position: relative; height: var(--h); border-radius: 18px; overflow: hidden; border: 2px solid var(--line); transition: box-shadow .2s, transform .2s;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--water-top) 40%, var(--glow)) 0 50%, var(--water-top) 50%, var(--water-deep) 100%); }
+@media (min-width: 900px) { .lake { --h: 250px; } }
+.lake.over { box-shadow: 0 0 0 4px var(--glow), 0 0 34px var(--glow); transform: scale(1.02); }
+.halo { position: absolute; left: 50%; top: 6%; width: 70%; aspect-ratio: 1; transform: translateX(-50%) scale(.4); background: radial-gradient(circle, var(--glow), transparent 68%); opacity: 0; transition: opacity .6s, transform .8s; }
+.lake.up .halo { opacity: .9; transform: translateX(-50%) scale(1); }
+.goddess { position: absolute; left: 50%; bottom: 0; height: 80%; aspect-ratio: 120 / 150; transform: translateX(-50%) translateY(108%); transition: transform 1s cubic-bezier(.2, .9, .3, 1.15); --held: #f6e3a0; }
+.lake.up .goddess { transform: translateX(-50%) translateY(0); animation: bob 3s ease-in-out 1s infinite; }
+@keyframes bob { 50% { transform: translateX(-50%) translateY(-3%); } }
+.goddess svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.goddess [class^="m-"] { display: none; }
+.goddess[data-mood="smile"] .m-smile, .goddess[data-mood="joy"] .m-joy, .goddess[data-mood="wow"] .m-wow, .goddess[data-mood="wink"] .m-wink { display: inline; }
+.bed { position: absolute; inset: 50% 0 0 0; }
+.bed i { position: absolute; width: 17px; height: 10px; border-radius: 2px; background: var(--c); opacity: .75; transform: rotate(var(--r)); box-shadow: 0 0 8px color-mix(in srgb, var(--c) 70%, transparent); animation: glint 4s ease-in-out infinite; animation-delay: var(--d); }
+@keyframes glint { 50% { opacity: .35; } }
+.front { position: absolute; inset: 50% 0 0 0; background: linear-gradient(to bottom, color-mix(in srgb, var(--water-top) 70%, transparent), color-mix(in srgb, var(--water-deep) 78%, transparent)); pointer-events: none; }
+.front::before, .front::after { content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 12px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='12'%3E%3Cpath d='M0 6Q15 0 30 6T60 6T90 6T120 6' fill='none' stroke='white' stroke-opacity='.6' stroke-width='2'/%3E%3C/svg%3E") repeat-x 0 0; animation: wave 6s linear infinite; }
+.front::after { top: 12px; opacity: .45; animation-duration: 9s; animation-direction: reverse; }
+@keyframes wave { to { background-position-x: 120px; } }
+.ripple { position: absolute; width: 20px; height: 8px; margin: -4px 0 0 -10px; border: 2px solid rgba(255, 255, 255, .85); border-radius: 50%; animation: rip 1.6s ease-out forwards; pointer-events: none; }
+@keyframes rip { to { transform: scale(7, 5); opacity: 0; } }
+.spark { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #ffe9a0; box-shadow: 0 0 8px #ffe9a0; animation: spark 1.4s ease-out forwards; pointer-events: none; }
+@keyframes spark { from { opacity: 1; } to { opacity: 0; transform: translate(var(--x), var(--y)) scale(.3); } }
+.bubble { position: absolute; left: 0; right: 0; bottom: calc(100% + 24px); z-index: 6; background: var(--panel); color: var(--ink); border: 2px solid var(--ink); border-radius: 14px; padding: 9px 13px; font-size: 13px; line-height: 1.5; opacity: 0; transform: translateY(8px) scale(.96); transition: opacity .3s, transform .3s; pointer-events: none; box-shadow: 0 4px 0 var(--shadow); }
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 12px; background: var(--panel); border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: translateX(-50%) rotate(45deg); }
+.bubble.show { opacity: 1; transform: none; }
+.bubble b { font-family: var(--f-display); font-weight: 400; color: var(--stamp); display: block; font-size: 11px; letter-spacing: .2em; }
+@media (min-width: 900px) { .bubble { bottom: calc(100% + 14px); font-size: 14px; } }
+
+.shr { --h: 120px; position: relative; height: var(--h); display: flex; flex-direction: column; align-items: center; transition: transform .2s; }
+@media (min-width: 900px) { .shr { --h: 230px; } }
+.shr.over { transform: scale(1.04); }
+.shr.over .shrBody { box-shadow: 0 0 0 4px var(--stamp), 0 0 26px var(--stamp); }
+.shrBody { position: relative; width: 100%; flex: 1; min-height: 0; border-radius: 14px 14px 6px 6px; border: 2px solid var(--metal-dark);
+  background: repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, .08) 9px 10px), linear-gradient(to bottom, color-mix(in srgb, var(--metal) 85%, #fff), var(--metal)); transition: box-shadow .2s; }
+.shrHead { position: absolute; left: 8%; right: 8%; top: 9px; height: 18px; border-radius: 9px; background: #1a2229; box-shadow: inset 0 3px 5px #000; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+.shrSlot { position: absolute; left: 14px; right: 26px; top: 6px; height: 6px; border-radius: 3px; background: #000; opacity: .85; }
+.led { width: 7px; height: 7px; border-radius: 50%; background: #4fd18b; box-shadow: 0 0 6px #4fd18b; }
+.shr.run .led { background: #ff4a3a; box-shadow: 0 0 8px #ff4a3a; animation: blink .25s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .2; } }
+.shr.run .shrBody { animation: shake .09s linear infinite; }
+@keyframes shake { 0% { transform: translate(1px, 0); } 50% { transform: translate(-1px, 1px); } 100% { transform: translate(0, -1px); } }
+.shrLabel { position: absolute; left: 0; right: 0; top: 42%; text-align: center; font-family: var(--f-display); font-size: 15px; letter-spacing: .3em; color: rgba(0, 0, 0, .55); padding-left: .3em; }
+.shr .shrMouth { position: absolute; left: 8%; right: 8%; bottom: 9px; height: 5px; border-radius: 3px; background: #1a2229; box-shadow: inset 0 2px 3px #000; }
+.shrBin { width: 84%; height: 26%; max-height: 54px; min-height: 22px; border: 2px solid var(--metal-dark); border-top: 0; border-radius: 0 0 12px 12px; position: relative; overflow: hidden; background: color-mix(in srgb, var(--metal-dark) 30%, transparent); }
+.shrBin i { position: absolute; bottom: -2px; width: 4px; height: 20px; background: var(--c); border-radius: 1px; transform: rotate(var(--r)); opacity: .9; }
+
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 90; overflow: hidden; }
+.fxclip { position: fixed; overflow: hidden; pointer-events: none; z-index: 95; }
+.fxclip > * { position: absolute; transform-origin: 0 0; }
+.toast { position: fixed; left: 50%; top: 14px; transform: translate(-50%, -20px); background: var(--ink); color: var(--bg); border-radius: 999px; padding: 7px 16px; font-size: 13px; opacity: 0; transition: .3s; z-index: 120; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce) {
+  .front::before, .front::after, .bed i, .lake.up .goddess { animation: none; }
+  .tk.printing { animation: none; }
+}
+@media (max-width: 480px) {
+  .brand h1 { font-size: 25px; }
+  .tk-title { font-size: 19px; }
+  .tk.late .tk-main::after { top: 34px; font-size: 17px; right: 66px; }
+  .weeknav .range { min-width: 8em; font-size: 15px; }
+  .issue { grid-template-columns: minmax(0, 1fr); }
+  .go { padding: 10px 20px; }
+}
+</style>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>ToDo <b>プッシャー</b></h1>
+      <p>1週間ぶんの予定を切符にして、終わったら湖へ、いらなければシュレッダーへ。</p>
+    </div>
+    <nav class="weeknav" aria-label="週の切り替え">
+      <button class="chip" id="prevW" aria-label="前の週">&larr;</button>
+      <div class="range" id="range"></div>
+      <button class="chip" id="nextW" aria-label="次の週">&rarr;</button>
+      <button class="chip" id="thisW">今週</button>
+    </nav>
+  </header>
+
+  <div class="main">
+    <section class="board" aria-label="切符">
+      <div class="strip" id="strip"></div>
+
+      <form class="window" id="issueForm" autocomplete="off">
+        <h2>発券窓口 <small id="issueDay"></small></h2>
+        <div class="issue">
+          <input class="field" id="titleInp" type="text" maxlength="40" placeholder="行き先（やること）を入力" aria-label="やること">
+          <button class="go" type="submit">発券</button>
+          <div class="row2">
+            <div class="kinds" id="kinds" role="group" aria-label="切符の種類"></div>
+            <input class="field timeinp" id="timeInp" type="time" aria-label="発車時刻（任意）">
+          </div>
+        </div>
+      </form>
+      <p class="note" id="hint">切符の右の半券をつかんで、湖かシュレッダーへ投げ入れます。ドラッグしづらいときは、切符の右下のボタンでも同じことができます。</p>
+
+      <div class="rackhead"><h2 id="rackTitle"></h2><span id="rackMeta"></span></div>
+      <div class="rack" id="rack"></div>
+    </section>
+
+    <aside class="scene" id="scene" aria-label="湖とシュレッダー">
+      <div class="lakeWrap">
+        <div class="bubble" id="bubble" role="status" aria-live="polite"></div>
+        <div class="lake" id="lake" data-zone="lake">
+          <div class="halo"></div>
+          <div class="goddess" id="goddess" data-mood="smile">
+            <svg viewBox="0 0 120 150" aria-hidden="true">
+              <ellipse cx="60" cy="62" rx="40" ry="50" fill="#7fdcc8"/>
+              <ellipse cx="60" cy="70" rx="46" ry="62" fill="#a8eedd" opacity=".55"/>
+              <path d="M26 150 L33 100 Q60 80 87 100 L94 150 Z" fill="#f5fbff"/>
+              <path d="M44 96 Q60 110 76 96" fill="none" stroke="#8ed8cc" stroke-width="3" stroke-linecap="round"/>
+              <rect x="52" y="76" width="16" height="14" rx="6" fill="#ffe6d6"/>
+              <circle cx="60" cy="58" r="22" fill="#ffe9dc"/>
+              <path d="M37 58 Q36 30 60 29 Q84 30 83 58 Q72 44 60 48 Q48 44 37 58 Z" fill="#7fdcc8"/>
+              <ellipse cx="60" cy="14" rx="23" ry="6" fill="none" stroke="#f3c13b" stroke-width="3"/>
+              <circle cx="48" cy="66" r="4" fill="#ffb3b3" opacity=".6"/><circle cx="72" cy="66" r="4" fill="#ffb3b3" opacity=".6"/>
+              <g class="m-smile"><path d="M47 58 Q51 54 55 58 M65 58 Q69 54 73 58" fill="none" stroke="#3a4a55" stroke-width="2.4" stroke-linecap="round"/><path d="M55 68 Q60 72 65 68" fill="none" stroke="#c4574d" stroke-width="2.4" stroke-linecap="round"/></g>
+              <g class="m-joy"><path d="M46 60 Q51 52 56 60 M64 60 Q69 52 74 60" fill="none" stroke="#3a4a55" stroke-width="2.6" stroke-linecap="round"/><path d="M52 67 Q60 77 68 67 Z" fill="#c4574d" stroke="#c4574d" stroke-width="2" stroke-linejoin="round"/></g>
+              <g class="m-wow"><circle cx="51" cy="58" r="3.6" fill="#3a4a55"/><circle cx="69" cy="58" r="3.6" fill="#3a4a55"/><ellipse cx="60" cy="70" rx="3.5" ry="4.5" fill="#c4574d"/></g>
+              <g class="m-wink"><path d="M47 58 Q51 54 55 58" fill="none" stroke="#3a4a55" stroke-width="2.4" stroke-linecap="round"/><circle cx="69" cy="58" r="3.6" fill="#3a4a55"/><path d="M55 68 Q61 73 66 67" fill="none" stroke="#c4574d" stroke-width="2.4" stroke-linecap="round"/></g>
+              <g transform="rotate(-6 60 124)"><rect x="42" y="116" width="36" height="17" rx="3" style="fill:var(--held)" stroke="#8a7a3a" stroke-width="1.2"/><path d="M48 116v17" stroke="#8a7a3a" stroke-width="1" stroke-dasharray="2 2"/></g>
+              <circle cx="42" cy="125" r="5" fill="#ffe9dc"/><circle cx="78" cy="125" r="5" fill="#ffe9dc"/>
+            </svg>
+          </div>
+          <div class="bed" id="bed"></div>
+          <div class="front"></div>
+          <div id="ripples"></div>
+        </div>
+        <div class="cap"><span><b>泉の女神</b></span><span id="lakeCount"></span></div>
+      </div>
+
+      <div class="shrWrap">
+        <div class="shr" id="shr" data-zone="shredder">
+          <div class="shrBody">
+            <div class="shrHead"><div class="shrSlot" id="shrSlot"></div><div class="led"></div></div>
+            <div class="shrLabel">SHRED</div>
+            <div class="shrMouth" id="shrMouth"></div>
+          </div>
+          <div class="shrBin" id="shrBin"></div>
+        </div>
+        <div class="cap"><span><b>シュレッダー</b></span><span id="shrCount"></span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div id="fx"></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(function () {
+'use strict';
+var KINDS = {
+  work:  { name: '仕事',   c: 'var(--paper-work)' },
+  life:  { name: '暮らし', c: 'var(--paper-life)' },
+  play:  { name: '遊び',   c: 'var(--paper-play)' },
+  learn: { name: '学び',   c: 'var(--paper-learn)' }
+};
+var DOW = ['月', '火', '水', '木', '金', '土', '日'];
+var KEY = 'todo-pusher-v1';
+function $(s) { return document.querySelector(s); }
+function pad(n) { return String(n).padStart(2, '0'); }
+function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parse(s) { var p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function mondayOf(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function rnd(a, b) { return a + Math.random() * (b - a); }
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+var today = ymd(new Date());
+
+/* ---------- state ---------- */
+function defaults() {
+  var mon = mondayOf(new Date());
+  var at = function (i) { return ymd(addDays(mon, i)); };
+  var S = [
+    [0, '請求書を送る', 'work', '17:00'], [2, '企画書の最終チェック', 'work', '10:30'],
+    [2, '牛乳とパンを買う', 'life', ''], [2, '英単語を20個', 'learn', '21:00'],
+    [3, '歯医者の予約電話', 'life', '09:30'], [4, '週報を出す', 'work', '16:00'],
+    [5, '友だちと映画', 'play', '13:00'], [6, '部屋の大掃除', 'life', '']
+  ];
+  return { v: 1, seq: S.length, shredded: 0, done: [], tickets: S.map(function (s, i) {
+    return { id: 's' + i, n: i + 1, day: at(s[0]), kind: s[2], time: s[3], title: s[1], sample: true };
+  }) };
+}
+function valid(s) { return s && Array.isArray(s.tickets) && Array.isArray(s.done) && typeof s.seq === 'number'; }
+var state = null;
+try { var raw = localStorage.getItem(KEY); if (raw) { var p = JSON.parse(raw); if (valid(p)) state = p; } } catch (e) {}
+if (!state) state = defaults();
+var weekStart = mondayOf(new Date());
+var selDay = today;
+var curKind = 'work';
+var newId = null;
+var docRef = null, touched = false, saveT = null, saving = false, again = false;
+
+function flush() {
+  if (!docRef) return;
+  if (saving) { again = true; return; }
+  saving = true;
+  docRef.set({ json: JSON.stringify(state) }).catch(function () {}).then(function () {
+    saving = false; if (again) { again = false; flush(); }
+  });
+}
+function persist() {
+  touched = true;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  clearTimeout(saveT); saveT = setTimeout(flush, 700);
+}
+function initDb() {
+  if (!window.claude || !window.claude.use) return;
+  Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (r) {
+    var db = r[0], user = r[1];
+    if (!db || !user) return null;
+    return user.id().then(function (id) {
+      if (!id) return null;
+      docRef = db.doc('data/users/' + id + '/state');
+      return docRef.get();
+    });
+  }).then(function (snap) {
+    if (!docRef || !snap) return;
+    if (snap.exists && !touched) {
+      try {
+        var s = JSON.parse(snap.data().json);
+        if (valid(s)) { state = s; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} renderAll(); }
+      } catch (e) {}
+    } else { flush(); }
+  }).catch(function () {});
+}
+
+/* ---------- render ---------- */
+var ICON_LAKE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9q3-3 6 0t6 0t6 0M3 15q3-3 6 0t6 0t6 0"/></svg>';
+var ICON_SHRED = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v6H5zM8 13v7M12 13v5M16 13v7"/></svg>';
+
+function dayTickets(day) {
+  return state.tickets.filter(function (t) { return t.day === day; }).sort(function (a, b) {
+    var x = a.time || '99:99', y = b.time || '99:99';
+    return x < y ? -1 : x > y ? 1 : a.n - b.n;
+  });
+}
+function weekDays() { var a = []; for (var i = 0; i < 7; i++) a.push(ymd(addDays(weekStart, i))); return a; }
+function label(day) { var d = parse(day); return (d.getMonth() + 1) + '月' + d.getDate() + '日（' + DOW[(d.getDay() + 6) % 7] + '）'; }
+
+function renderHead() {
+  var a = weekStart, b = addDays(weekStart, 6);
+  $('#range').textContent = (a.getMonth() + 1) + '月' + a.getDate() + '日 – ' + (b.getMonth() + 1) + '月' + b.getDate() + '日';
+}
+function renderStrip() {
+  var el = $('#strip'); el.innerHTML = '';
+  weekDays().forEach(function (day, i) {
+    var list = dayTickets(day), d = parse(day);
+    var b = document.createElement('button'); b.type = 'button'; b.dataset.day = day;
+    b.className = 'day' + (day === selDay ? ' sel' : '') + (day === today ? ' today' : '') +
+      (!list.length && state.done.some(function (x) { return x.day === day; }) ? ' clear' : '');
+    b.setAttribute('aria-label', label(day) + ' 残り' + list.length + '枚');
+    var dots = list.slice(0, 4).map(function (t) { return '<i style="--c:' + (KINDS[t.kind] || KINDS.work).c + '"></i>'; }).join('');
+    if (list.length > 4) dots += '<em>+' + (list.length - 4) + '</em>';
+    b.innerHTML = '<span class="dow">' + DOW[i] + '</span><span class="dnum">' + (d.getMonth() + 1) + '/' + d.getDate() + '</span><span class="dots">' + dots + '</span>';
+    b.addEventListener('click', function () { selDay = day; renderAll(); });
+    el.appendChild(b);
+  });
+}
+function renderKinds() {
+  var el = $('#kinds'); el.innerHTML = '';
+  Object.keys(KINDS).forEach(function (k) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'kind';
+    b.style.setProperty('--c', KINDS[k].c); b.textContent = KINDS[k].name;
+    b.setAttribute('aria-pressed', k === curKind ? 'true' : 'false');
+    b.addEventListener('click', function () { curKind = k; renderKinds(); });
+    el.appendChild(b);
+  });
+}
+function ticketEl(t) {
+  var k = KINDS[t.kind] || KINDS.work, d = parse(t.day);
+  var el = document.createElement('div');
+  el.className = 'tk' + (t.day < today ? ' late' : '');
+  el.dataset.id = t.id; el.style.setProperty('--paper', k.c);
+  el.innerHTML =
+    '<div class="tk-body"><div class="tk-main">' +
+      '<div class="tk-top"><span>乗車券' + (t.sample ? '<span class="sample">見本</span>' : '') + '</span><span class="stampdate">R' + (d.getFullYear() - 2018) + '.' + pad(d.getMonth() + 1) + '.' + pad(d.getDate()) + '</span></div>' +
+      '<div class="tk-dest"><small>行き先</small></div><p class="tk-title"></p>' +
+      '<div class="tk-foot"><span class="when"></span><span class="no"></span><span class="tk-acts">' +
+        '<button type="button" class="act" data-act="lake" title="湖に投げ入れる（完了）" aria-label="湖に投げ入れる（完了）">' + ICON_LAKE + '</button>' +
+        '<button type="button" class="act" data-act="shred" title="シュレッダーへ（破棄）" aria-label="シュレッダーへ（破棄）">' + ICON_SHRED + '</button>' +
+      '</span></div></div>' +
+    '<div class="stub"><span class="grip"></span><span class="kindname"></span><span class="bars"></span></div></div>';
+  el.querySelector('.tk-title').textContent = t.title;
+  el.querySelector('.when').textContent = '発車 ' + (t.time || '随時');
+  el.querySelector('.no').textContent = 'No.' + String(t.n).padStart(4, '0');
+  el.querySelector('.kindname').textContent = k.name;
+  return el;
+}
+function renderRack() {
+  var rack = $('#rack'); rack.innerHTML = '';
+  var list = dayTickets(selDay);
+  $('#rackTitle').textContent = label(selDay) + (selDay === today ? ' ・今日' : '');
+  $('#rackMeta').textContent = list.length ? '残り ' + list.length + ' 枚' : '';
+  $('#issueDay').textContent = label(selDay) + ' の切符を発券します';
+  if (!list.length) {
+    var e = document.createElement('div'); e.className = 'empty';
+    var hasDone = state.done.some(function (x) { return x.day === selDay; });
+    e.textContent = hasDone ? 'この日の切符はぜんぶ湖の底です。おつかれさまでした。' : 'この日の切符はまだありません。上の窓口で発券しましょう。';
+    rack.appendChild(e);
+  }
+  list.forEach(function (t) {
+    var el = ticketEl(t);
+    if (t.id === newId) { el.classList.add('printing'); el.addEventListener('animationend', function () { el.classList.remove('printing'); }); }
+    rack.appendChild(el);
+  });
+  newId = null;
+  var anySample = state.tickets.some(function (t) { return t.sample; });
+  $('#hint').textContent = '切符の右の半券をつかんで、湖かシュレッダーへ。ドラッグしづらいときは、切符の右下のボタンでも同じことができます。' +
+    (anySample ? '「見本」の切符は最初から入っているサンプルです。' : '');
+}
+function renderScene() {
+  var days = weekDays(), n = 0, bed = $('#bed'); bed.innerHTML = '';
+  var dones = state.done.filter(function (x) { return days.indexOf(x.day) >= 0; });
+  n = dones.length;
+  dones.slice(-18).forEach(function (x, i) {
+    var s = document.createElement('i');
+    s.style.setProperty('--c', (KINDS[x.kind] || KINDS.work).c);
+    s.style.left = ((i * 37 + 8) % 82 + 4) + '%'; s.style.top = ((i * 53 + 11) % 62 + 8) + '%';
+    s.style.setProperty('--r', ((i * 71) % 90 - 45) + 'deg'); s.style.setProperty('--d', (i % 6) * .6 + 's');
+    bed.appendChild(s);
+  });
+  $('#lakeCount').textContent = (weekStart.getTime() === mondayOf(new Date()).getTime() ? '今週' : 'この週') + ' ' + n + '枚が湖の底へ';
+  var bin = $('#shrBin'); bin.innerHTML = '';
+  var cols = Object.keys(KINDS).map(function (k) { return KINDS[k].c; });
+  for (var i = 0; i < Math.min(14, state.shredded); i++) {
+    var s2 = document.createElement('i');
+    s2.style.setProperty('--c', cols[i % 4]); s2.style.left = ((i * 23 + 6) % 88 + 2) + '%';
+    s2.style.setProperty('--r', ((i * 47) % 140 - 70) + 'deg'); s2.style.height = (14 + (i * 5) % 12) + 'px';
+    bin.appendChild(s2);
+  }
+  $('#shrCount').textContent = '破棄 ' + state.shredded + '枚';
+}
+function renderAll() { renderHead(); renderStrip(); renderRack(); renderScene(); }
+
+/* ---------- toast ---------- */
+var toastT;
+function toast(msg) {
+  var t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 2200);
+}
+
+/* ---------- forms and nav ---------- */
+$('#issueForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var inp = $('#titleInp'), title = inp.value.trim();
+  if (!title) { inp.focus(); toast('行き先（やること）を入力してください'); return; }
+  state.seq++;
+  var t = { id: 't' + Date.now().toString(36) + state.seq, n: state.seq, day: selDay, kind: curKind, time: $('#timeInp').value || '', title: title };
+  state.tickets.push(t); newId = t.id; persist();
+  inp.value = ''; renderAll(); inp.focus();
+});
+function shiftWeek(n) {
+  var idx = (parse(selDay).getDay() + 6) % 7;
+  weekStart = addDays(weekStart, n * 7); selDay = ymd(addDays(weekStart, idx)); renderAll();
+}
+$('#prevW').addEventListener('click', function () { shiftWeek(-1); });
+$('#nextW').addEventListener('click', function () { shiftWeek(1); });
+$('#thisW').addEventListener('click', function () { weekStart = mondayOf(new Date()); selDay = today; renderAll(); });
+
+window.__tp = { KINDS: KINDS, state: function () { return state; }, persist: persist, renderAll: renderAll, toast: toast, $: $, rnd: rnd, pick: pick, label: label,
+  today: function () { return today; }, weekDays: weekDays, mondayOf: mondayOf, parse: parse, ymd: ymd, getWeekStart: function () { return weekStart; } };
+renderKinds(); renderAll(); initDb();
+})();
+</script>
+<script>
+(function () {
+'use strict';
+var T = window.__tp, $ = T.$, rnd = T.rnd, pick = T.pick, KINDS = T.KINDS;
+var fx = $('#fx'), lake = $('#lake'), shr = $('#shr'), rack = $('#rack');
+var bubbleT = null, downT = null;
+
+function place(f, x, y, r, s) {
+  r = r || 0; s = s == null ? 1 : s;
+  f._p = { x: x, y: y, r: r, s: s };
+  f.style.transform = 'translate(' + x + 'px,' + y + 'px) rotate(' + r + 'deg) scale(' + s + ')';
+}
+function tf(x, y, r, s) { return 'translate(' + x + 'px,' + y + 'px) rotate(' + r + 'deg) scale(' + s + ')'; }
+function makeFly(el, x, y) {
+  var r = el.getBoundingClientRect(), f = el.cloneNode(true);
+  f.classList.remove('ghost', 'printing', 'leaving'); f.classList.add('fly');
+  f.style.width = r.width + 'px'; f.style.height = r.height + 'px';
+  f.style.transformOrigin = '50% 50%'; f.style.transition = 'none';
+  f._w = r.width; f._h = r.height;
+  document.body.appendChild(f); place(f, x, y, 0, 1);
+  return f;
+}
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function anim(el, frames, opts) { var a = el.animate(frames, opts); return a.finished.catch(function () {}); }
+
+function takeTicket(id) {
+  var s = T.state(), i = s.tickets.findIndex(function (t) { return t.id === id; });
+  if (i < 0) return null;
+  var t = s.tickets.splice(i, 1)[0]; return t;
+}
+
+/* ---------- goddess ---------- */
+function reaction(t, remaining, n) {
+  var late = t.day < T.today();
+  if (remaining === 0) return { mood: 'joy', label: 'ぜんぶ おわり', sparks: true, text: pick([
+    '今日の分、ぜんぶ沈めたのね。湖がきらきらしているわ。',
+    'あなたが落としたのは、この金のチケット？ ……いいえ、これはあなたの頑張りそのものね。',
+    '空っぽになった一日を、よく見て。あなたが作ったのよ。']) };
+  if (n % 5 === 0) return { mood: 'wow', label: n + '枚目', sparks: true, text: 'もう' + n + '枚も沈めたのね。湖の底が光りはじめたわ。' };
+  if (late) return { mood: 'wink', label: '遅延かいじょ', text: pick([
+    '遅れて着いた切符も、ちゃんと受け取るわ。', '遅延は解消よ。ダイヤはもう乱れていないわ。']) };
+  if (n === 1) return { mood: 'smile', label: 'はじめの一枚', text: pick([
+    '最初の一枚ね。いい滑り出しよ。', 'ぽちゃん。はじまりの音がしたわ。']) };
+  var by = {
+    work: ['お仕事おつかれさま。湖の底で大切に預かるわ。', 'えらいわ。肩の力も、いっしょに沈めていきなさい。'],
+    life: ['暮らしを整える人、好きよ。', '小さな用事ほど、終わると気持ちいいでしょう？'],
+    play: ['楽しめた？それがいちばんの成果よ。', '遊びの切符は、いつ沈めても金色に光るの。'],
+    learn: ['知恵がひとつ沈んだわ。湖が賢くなるわね。', '学んだことは、水のようにあなたに染みていくわ。']
+  };
+  return { mood: pick(['smile', 'joy']), label: '受け取りました', text: pick(by[t.kind] || by.work) };
+}
+function goddessSay(r, kind) {
+  var g = $('#goddess'), b = $('#bubble');
+  g.dataset.mood = r.mood;
+  g.style.setProperty('--held', (KINDS[kind] || KINDS.work).c);
+  b.innerHTML = ''; var h = document.createElement('b'); h.textContent = r.label;
+  var s = document.createElement('span'); s.textContent = r.text; b.appendChild(h); b.appendChild(s);
+  lake.classList.add('up'); b.classList.add('show');
+  if (r.sparks) sparkle();
+  clearTimeout(bubbleT); clearTimeout(downT);
+  bubbleT = setTimeout(function () { b.classList.remove('show'); }, 4600);
+  downT = setTimeout(function () { lake.classList.remove('up'); }, 5000);
+}
+function sparkle() {
+  var box = $('#ripples'), w = lake.clientWidth, h = lake.clientHeight;
+  for (var i = 0; i < 16; i++) {
+    var s = document.createElement('div'); s.className = 'spark';
+    s.style.left = (w * rnd(.3, .7)) + 'px'; s.style.top = (h * rnd(.2, .55)) + 'px';
+    s.style.setProperty('--x', rnd(-60, 60) + 'px'); s.style.setProperty('--y', rnd(-50, 20) + 'px');
+    s.style.animationDelay = rnd(0, .5) + 's';
+    box.appendChild(s); setTimeout(function (el) { el.remove(); }.bind(null, s), 2200);
+  }
+}
+function ripple(x, y) {
+  var box = $('#ripples'), r = lake.getBoundingClientRect();
+  [0, 220, 440].forEach(function (d) {
+    setTimeout(function () {
+      var e = document.createElement('div'); e.className = 'ripple';
+      e.style.left = (x - r.left) + 'px'; e.style.top = (y - r.top) + 'px';
+      box.appendChild(e); setTimeout(function () { e.remove(); }, 1700);
+    }, d);
+  });
+}
+
+/* ---------- throw into the lake ---------- */
+function toLake(fly, t) {
+  var lr = lake.getBoundingClientRect(), p = fly._p, w = fly._w, h = fly._h;
+  var tx = lr.left + lr.width * rnd(.4, .6), ty = lr.top + lr.height * .68;
+  var sx = p.x + w / 2, sy = p.y + h / 2;
+  var apexY = Math.min(sy, ty) - 120, mx = (sx + tx) / 2;
+  var s = T.state(); s.done.push({ day: t.day, kind: t.kind, at: Date.now() }); if (s.done.length > 500) s.done.shift();
+  var remaining = s.tickets.filter(function (x) { return x.day === t.day; }).length;
+  var doneThisWeek = s.done.filter(function (x) { return T.weekDays().indexOf(x.day) >= 0; }).length;
+  var total = s.done.length;
+  T.persist(); T.renderAll();
+  var spin = (Math.random() < .5 ? -1 : 1) * 540;
+  anim(fly, [
+    { transform: tf(p.x, p.y, p.r, 1), opacity: 1 },
+    { transform: tf(mx - w / 2, apexY - h / 2, p.r + spin * .45, .6), opacity: 1, offset: .5, easing: 'ease-in' },
+    { transform: tf(tx - w / 2, ty - h / 2, p.r + spin, .12), opacity: .95 }
+  ], { duration: 760, easing: 'ease-out', fill: 'forwards' }).then(function () {
+    fly.remove();
+    ripple(tx, ty);
+    var sink = document.createElement('div');
+    sink.style.cssText = 'position:absolute;width:22px;height:13px;border-radius:2px;background:' + (KINDS[t.kind] || KINDS.work).c + ';left:' + (tx - lr.left - 11) + 'px;top:' + (ty - lr.top - 6) + 'px;';
+    $('#ripples').appendChild(sink);
+    anim(sink, [{ transform: 'translateY(0) rotate(0)', opacity: 1 }, { transform: 'translateY(46px) rotate(120deg)', opacity: 0 }], { duration: 1100, easing: 'ease-in' }).then(function () { sink.remove(); });
+    return wait(450);
+  }).then(function () { goddessSay(reaction(t, remaining, doneThisWeek), t.kind); });
+}
+
+/* ---------- shredder ---------- */
+function stripClone(fly, W, H, i, N) {
+  var c = fly.cloneNode(true);
+  c.classList.remove('fly', 'printing', 'ghost');
+  c.style.cssText = 'position:absolute;left:0;top:0;width:' + W + 'px;height:' + H + 'px;transform-origin:0 0;filter:none;transition:none;';
+  if (N) c.style.clipPath = 'inset(0 ' + (100 - (i + 1) * 100 / N) + '% 0 ' + (i * 100 / N) + '%)';
+  return c;
+}
+function toShredder(fly, t) {
+  var s = T.state(); s.shredded++; T.persist(); T.renderAll();
+  var slot = $('#shrSlot').getBoundingClientRect(), mouth = $('#shrMouth').getBoundingClientRect(), bin = $('#shrBin').getBoundingClientRect();
+  var p = fly._p, W = fly._w, H = fly._h;
+  var sc = Math.min(1, (slot.width * .92) / W, .62), sw = W * sc, sh = H * sc;
+  var cx = slot.left + slot.width / 2, slotY = slot.top + slot.height / 2;
+  var endX = cx - W / 2, endY = (slotY - 6 - sh / 2) - H / 2;
+  anim(fly, [
+    { transform: tf(p.x, p.y, p.r, 1) },
+    { transform: tf(endX, endY, 0, sc) }
+  ], { duration: 320, easing: 'cubic-bezier(.2,.8,.3,1)', fill: 'forwards' }).then(function () {
+    fly.remove();
+    shr.classList.add('run');
+    var pad = 4, ch = sh + 40;
+    var cin = document.createElement('div'); cin.className = 'fxclip';
+    cin.style.cssText = 'left:' + (cx - sw / 2 - pad) + 'px;top:' + (slotY - ch) + 'px;width:' + (sw + pad * 2) + 'px;height:' + ch + 'px;';
+    var tc = stripClone(fly, W, H, 0, 0); tc.style.left = pad + 'px'; tc.style.filter = '';
+    tc.style.transform = 'translateY(' + (ch - 6 - sh) + 'px) scale(' + sc + ')'; cin.appendChild(tc);
+    document.body.appendChild(cin);
+    var D = 1900, delay = 380, N = Math.max(10, Math.min(24, Math.round(sw / 8)));
+    var oy = mouth.top + mouth.height * .5, oh = Math.max(60, bin.bottom - oy);
+    var cout = document.createElement('div'); cout.className = 'fxclip';
+    cout.style.cssText = 'left:' + (cx - sw / 2 - 10) + 'px;top:' + oy + 'px;width:' + (sw + 20) + 'px;height:' + oh + 'px;';
+    document.body.appendChild(cout);
+    for (var i = 0; i < N; i++) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'left:10px;top:0;width:' + sw + 'px;height:' + sh + 'px;transform-origin:' + ((i + .5) / N * 100) + '% 30%;';
+      var inner = stripClone(fly, W, H, i, N); inner.style.transform = 'scale(' + sc + ')';
+      wrap.appendChild(inner); cout.appendChild(wrap);
+      var r = Math.random(), fall = oh - sh + rnd(10, 40), dx = rnd(-8, 8), rot = rnd(-35, 35);
+      wrap.animate([
+        { transform: 'translate(0,' + (-sh) + 'px) rotate(0deg)', opacity: 1 },
+        { transform: 'translate(0,0) rotate(0deg)', opacity: 1, offset: .5 },
+        { transform: 'translate(0,0) rotate(0deg)', opacity: 1, offset: .5 + r * .2 },
+        { transform: 'translate(' + dx + 'px,' + fall + 'px) rotate(' + rot + 'deg)', opacity: 0 }
+      ], { duration: D, delay: delay, easing: 'linear', fill: 'both' });
+    }
+    anim(tc, [
+      { transform: 'translateY(' + (ch - 6 - sh) + 'px) scale(' + sc + ')' },
+      { transform: 'translateY(' + (ch + 4) + 'px) scale(' + sc + ')' }
+    ], { duration: 1000, easing: 'linear', fill: 'forwards' }).then(function () { cin.remove(); });
+    return wait(delay + D + 80).then(function () { cout.remove(); shr.classList.remove('run'); T.renderAll(); });
+  });
+}
+
+/* ---------- move to another day ---------- */
+function toDay(fly, t, dayEl) {
+  var r = dayEl.getBoundingClientRect(), p = fly._p, w = fly._w, h = fly._h;
+  t.day = dayEl.dataset.day; T.persist();
+  anim(fly, [
+    { transform: tf(p.x, p.y, p.r, 1), opacity: 1 },
+    { transform: tf(r.left + r.width / 2 - w / 2, r.top + r.height / 2 - h / 2, 0, .1), opacity: .2 }
+  ], { duration: 320, easing: 'ease-in', fill: 'forwards' }).then(function () {
+    fly.remove(); T.renderAll(); T.toast(T.label(t.day) + ' に移しました');
+  });
+}
+function snapBack(fly, el) {
+  var r = el.getBoundingClientRect(), p = fly._p;
+  anim(fly, [
+    { transform: tf(p.x, p.y, p.r, 1) }, { transform: tf(r.left, r.top, 0, 1) }
+  ], { duration: 240, easing: 'ease-out', fill: 'forwards' }).then(function () { fly.remove(); el.classList.remove('ghost'); });
+}
+
+/* ---------- actions ---------- */
+function perform(kind, fly, id, dayEl) {
+  var t = takeTicket(id); if (!t) { fly.remove(); return; }
+  if (kind === 'lake') toLake(fly, t);
+  else if (kind === 'shredder') toShredder(fly, t);
+  else if (kind === 'day') { T.state().tickets.push(t); toDay(fly, t, dayEl); }
+}
+rack.addEventListener('click', function (e) {
+  var b = e.target.closest('.act'); if (!b) return;
+  var el = b.closest('.tk'), r = el.getBoundingClientRect();
+  var fly = makeFly(el, r.left, r.top); el.classList.add('ghost');
+  perform(b.dataset.act === 'lake' ? 'lake' : 'shredder', fly, el.dataset.id);
+});
+
+/* ---------- drag ---------- */
+var drag = null;
+function zoneAt(x, y) {
+  var n = document.elementFromPoint(x, y); if (!n) return null;
+  var d = n.closest('.day'); if (d) return { kind: 'day', el: d };
+  if (n.closest('#lake') || n.closest('.lakeWrap')) return { kind: 'lake', el: lake };
+  if (n.closest('#shr')) return { kind: 'shredder', el: shr };
+  return null;
+}
+function mark(z) {
+  lake.classList.toggle('over', !!z && z.kind === 'lake');
+  shr.classList.toggle('over', !!z && z.kind === 'shredder');
+  document.querySelectorAll('.day.over').forEach(function (d) { if (!z || z.el !== d) d.classList.remove('over'); });
+  if (z && z.kind === 'day') z.el.classList.add('over');
+}
+rack.addEventListener('pointerdown', function (e) {
+  var el = e.target.closest('.tk'); if (!el || e.target.closest('.act')) return;
+  if (e.pointerType === 'touch' && !e.target.closest('.stub')) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  var r = el.getBoundingClientRect();
+  drag = { el: el, id: el.dataset.id, sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, on: false, fly: null, lx: e.clientX, tilt: 0 };
+  try { el.setPointerCapture(e.pointerId); } catch (x) {}
+});
+window.addEventListener('pointermove', function (e) {
+  if (!drag) return;
+  if (!drag.on) {
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+    drag.on = true; drag.fly = makeFly(drag.el, e.clientX - drag.ox, e.clientY - drag.oy);
+    drag.el.classList.add('ghost'); document.body.classList.add('dragging-body');
+  }
+  drag.tilt += (Math.max(-12, Math.min(12, (e.clientX - drag.lx) * .8)) - drag.tilt) * .35; drag.lx = e.clientX;
+  place(drag.fly, e.clientX - drag.ox, e.clientY - drag.oy, drag.tilt, 1.03);
+  mark(zoneAt(e.clientX, e.clientY));
+});
+function endDrag(e, cancel) {
+  if (!drag) return;
+  var d = drag; drag = null;
+  document.body.classList.remove('dragging-body');
+  if (!d.on) return;
+  var z = cancel ? null : zoneAt(e.clientX, e.clientY);
+  mark(null);
+  place(d.fly, e.clientX - d.ox, e.clientY - d.oy, d.tilt, 1);
+  if (!z) { snapBack(d.fly, d.el); return; }
+  var cur = T.state().tickets.filter(function (t) { return t.id === d.id; })[0];
+  if (z.kind === 'day' && cur && z.el.dataset.day === cur.day) { snapBack(d.fly, d.el); return; }
+  perform(z.kind, d.fly, d.id, z.el);
+}
+window.addEventListener('pointerup', function (e) { endDrag(e, false); });
+window.addEventListener('pointercancel', function (e) { endDrag(e, true); });
+window.addEventListener('dragstart', function (e) { if (drag) e.preventDefault(); });
+})();
+</script>
+
+</body></html>
