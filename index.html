@@ -259,19 +259,24 @@ button { cursor: pointer; }
           <div class="halo"></div>
           <div class="goddess" id="goddess" data-mood="smile">
             <svg viewBox="0 0 120 150" aria-hidden="true">
-              <ellipse cx="60" cy="62" rx="40" ry="50" fill="#7fdcc8"/>
-              <ellipse cx="60" cy="70" rx="46" ry="62" fill="#a8eedd" opacity=".55"/>
-              <path d="M26 150 L33 100 Q60 80 87 100 L94 150 Z" fill="#f5fbff"/>
-              <path d="M44 96 Q60 110 76 96" fill="none" stroke="#8ed8cc" stroke-width="3" stroke-linecap="round"/>
+              <ellipse cx="60" cy="64" rx="40" ry="52" fill="#35323e"/>
+              <ellipse cx="60" cy="72" rx="46" ry="62" fill="#2a2833" opacity=".6"/>
+              <path d="M26 150 L33 100 Q60 80 87 100 L94 150 Z" fill="#26304f"/>
+              <path d="M42 92 Q60 106 78 92 L74 106 Q60 116 46 106 Z" fill="#31406b"/>
+              <path d="M44 97 Q60 110 76 97" fill="none" stroke="#eef4ff" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M46 103 Q60 114 74 103" fill="none" stroke="#eef4ff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>
+              <path d="M57 104 L63 104 L61.6 130 L60 134 L58.4 130 Z" fill="#7ec8e3"/>
               <rect x="52" y="76" width="16" height="14" rx="6" fill="#ffe6d6"/>
               <circle cx="60" cy="58" r="22" fill="#ffe9dc"/>
-              <path d="M37 58 Q36 30 60 29 Q84 30 83 58 Q72 44 60 48 Q48 44 37 58 Z" fill="#7fdcc8"/>
-              <ellipse cx="60" cy="14" rx="23" ry="6" fill="none" stroke="#f3c13b" stroke-width="3"/>
+              <path d="M37 58 Q36 30 60 29 Q84 30 83 58 Q72 44 60 48 Q48 44 37 58 Z" fill="#35323e"/>
+              <path d="M82 54 Q85 74 81 88 L75 85 Q79 70 78 56 Z" fill="#35323e"/>
+              <g fill="#35323e"><circle cx="36" cy="72" r="6.5"/><circle cx="33" cy="83" r="6"/><circle cx="36" cy="94" r="5.6"/><circle cx="33.5" cy="104" r="5.2"/></g>
+              <g fill="#7ec8e3"><path d="M33 110 L24 105 L26 115 Z"/><path d="M35 110 L44 105 L42 115 Z"/><circle cx="34" cy="110" r="2.6"/></g>
               <circle cx="48" cy="66" r="4" fill="#ffb3b3" opacity=".6"/><circle cx="72" cy="66" r="4" fill="#ffb3b3" opacity=".6"/>
               <g class="m-smile"><path d="M47 58 Q51 54 55 58 M65 58 Q69 54 73 58" fill="none" stroke="#3a4a55" stroke-width="2.4" stroke-linecap="round"/><path d="M55 68 Q60 72 65 68" fill="none" stroke="#c4574d" stroke-width="2.4" stroke-linecap="round"/></g>
               <g class="m-joy"><path d="M46 60 Q51 52 56 60 M64 60 Q69 52 74 60" fill="none" stroke="#3a4a55" stroke-width="2.6" stroke-linecap="round"/><path d="M52 67 Q60 77 68 67 Z" fill="#c4574d" stroke="#c4574d" stroke-width="2" stroke-linejoin="round"/></g>
-              <g class="m-wow"><circle cx="51" cy="58" r="3.6" fill="#3a4a55"/><circle cx="69" cy="58" r="3.6" fill="#3a4a55"/><ellipse cx="60" cy="70" rx="3.5" ry="4.5" fill="#c4574d"/></g>
-              <g class="m-wink"><path d="M47 58 Q51 54 55 58" fill="none" stroke="#3a4a55" stroke-width="2.4" stroke-linecap="round"/><circle cx="69" cy="58" r="3.6" fill="#3a4a55"/><path d="M55 68 Q61 73 66 67" fill="none" stroke="#c4574d" stroke-width="2.4" stroke-linecap="round"/></g>
+              <g class="m-wow"><circle cx="51" cy="58" r="3.6" fill="#6d4fc2"/><circle cx="69" cy="58" r="3.6" fill="#6d4fc2"/><ellipse cx="60" cy="70" rx="3.5" ry="4.5" fill="#c4574d"/></g>
+              <g class="m-wink"><path d="M47 58 Q51 54 55 58" fill="none" stroke="#3a4a55" stroke-width="2.4" stroke-linecap="round"/><circle cx="69" cy="58" r="3.6" fill="#6d4fc2"/><path d="M55 68 Q61 73 66 67" fill="none" stroke="#c4574d" stroke-width="2.4" stroke-linecap="round"/></g>
               <g transform="rotate(-6 60 124)"><rect x="42" y="116" width="36" height="17" rx="3" style="fill:var(--held)" stroke="#8a7a3a" stroke-width="1.2"/><path d="M48 116v17" stroke="#8a7a3a" stroke-width="1" stroke-dasharray="2 2"/></g>
               <circle cx="42" cy="125" r="5" fill="#ffe9dc"/><circle cx="78" cy="125" r="5" fill="#ffe9dc"/>
             </svg>
@@ -280,7 +285,7 @@ button { cursor: pointer; }
           <div class="front"></div>
           <div id="ripples"></div>
         </div>
-        <div class="cap"><span><b>泉の女神</b></span><span id="lakeCount"></span></div>
+        <div class="cap"><span><b>雨音</b></span><span id="lakeCount"></span></div>
       </div>
 
       <div class="shrWrap">
@@ -548,23 +553,23 @@ function takeTicket(id) {
   var t = s.tickets.splice(i, 1)[0]; return t;
 }
 
-/* ---------- goddess ---------- */
+/* ---------- amane ---------- */
 function reaction(t, remaining, n) {
   var late = t.day < T.today();
   if (remaining === 0) return { mood: 'joy', label: 'ぜんぶ おわり', sparks: true, text: pick([
-    '今日の分、ぜんぶ沈めたのね。湖がきらきらしているわ。',
-    'あなたが落としたのは、この金のチケット？ ……いいえ、これはあなたの頑張りそのものね。',
-    '空っぽになった一日を、よく見て。あなたが作ったのよ。']) };
-  if (n % 5 === 0) return { mood: 'wow', label: n + '枚目', sparks: true, text: 'もう' + n + '枚も沈めたのね。湖の底が光りはじめたわ。' };
+    '今日の分、ぜんぶ沈めたね、先生。湖がきらきらしているよ。',
+    '先生が落としたのは、この金のチケット？ ……ううん、これは先生の頑張りそのものだね。',
+    '空っぽになった一日を、よく見て。先生が作った一日だよ。']) };
+  if (n % 5 === 0) return { mood: 'wow', label: n + '枚目', sparks: true, text: 'もう' + n + '枚も沈めたんだね。湖の底が光りはじめたよ。' };
   if (late) return { mood: 'wink', label: '遅延かいじょ', text: pick([
-    '遅れて着いた切符も、ちゃんと受け取るわ。', '遅延は解消よ。ダイヤはもう乱れていないわ。']) };
+    '遅れて着いた切符も、ちゃんと受け取るよ。', '遅延は解消。ダイヤはもう乱れていないよ。']) };
   if (n === 1) return { mood: 'smile', label: 'はじめの一枚', text: pick([
-    '最初の一枚ね。いい滑り出しよ。', 'ぽちゃん。はじまりの音がしたわ。']) };
+    '最初の一枚だね。いい滑り出しだよ、先生。', 'ぽちゃん。はじまりの音がしたよ。']) };
   var by = {
-    work: ['お仕事おつかれさま。湖の底で大切に預かるわ。', 'えらいわ。肩の力も、いっしょに沈めていきなさい。'],
-    life: ['暮らしを整える人、好きよ。', '小さな用事ほど、終わると気持ちいいでしょう？'],
-    play: ['楽しめた？それがいちばんの成果よ。', '遊びの切符は、いつ沈めても金色に光るの。'],
-    learn: ['知恵がひとつ沈んだわ。湖が賢くなるわね。', '学んだことは、水のようにあなたに染みていくわ。']
+    work: ['お仕事おつかれさま、先生。湖の底で大切に預かるね。', 'えらいよ。肩の力も、いっしょに沈めていこう。'],
+    life: ['暮らしを整える人、素敵だと思う。', '小さな用事ほど、終わると気持ちいいよね。'],
+    play: ['楽しめた？ それがいちばんの成果だよ。', '遊びの切符は、いつ沈めても金色に光るんだ。'],
+    learn: ['知恵がひとつ沈んだね。湖が賢くなるね。', '学んだことは、水みたいに先生に染みていくよ。']
   };
   return { mood: pick(['smile', 'joy']), label: '受け取りました', text: pick(by[t.kind] || by.work) };
 }
